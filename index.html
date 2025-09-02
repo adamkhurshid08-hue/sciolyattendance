@@ -2,7 +2,7 @@
 <html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <title>Attendance Tracker (Service Account)</title>
+  <title>Attendance Tracker (Google Sheets)</title>
   <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
@@ -19,30 +19,21 @@
 <body>
 <div class="container py-4">
   <h1 class="mb-3"><i class="fas fa-user-check me-2"></i>Attendance Tracker</h1>
+
+  <button id="authorize_button" class="btn btn-primary mb-3">Authorize Google</button>
+  <button id="signout_button" class="btn btn-secondary mb-3" style="display:none;">Sign Out</button>
+  <button class="btn btn-success mb-3" onclick="generateSummarySheet()">Update Summary</button>
+
   <div id="students-grid" class="row g-4"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/jsrsasign"></script>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script>
 /* --- CONFIG --- */
+const CLIENT_ID = "1055886700836-sajvukin1408sau8qou1l8eiib7360a4.apps.googleusercontent.com";
+const API_KEY = "AIzaSyC8N2Ntstm4g6PxQ8RXUrGE38Ac7ebJMQc";
 const SHEET_ID = "1oNVG7sDwFb-SXXDYG0x_M2JJFgg6T2e2sUmZDSF6zM8";
-const SERVICE_ACCOUNT = {
-  "type": "service_account",
-  "project_id": "even-trainer-465822-f8",
-  "private_key_id": "9f7259c2907e4a898aa645c5363f801fd0f1baac",
-  "private_key": `-----BEGIN PRIVATE KEY-----
-  MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCh1XcPc8rO0EeE\njOj5vsnW6GqUVxYWfAbfaVBewYe0cDZotNBAwX/kPvm6syqP7BKs/zqEpizPXmPN\nnfngEYLfnoOT74xAcov8kCXb5mldRroqQj6YCndKO0kzKF78eWJydifzkj9BOs+s\n4WZ2dZJDQ/z17T5WD6yyd2J+CWvaZmLu2BlJLMPNmsVTTNM4ZR7AFt+hP/lCnFyT\nYZ+RDcmv4gXGVaoNhB/80qYeRHiFQ2Roe+c9XYy4KSX0rPGgZS0TTUpG7qDfV3fc\n/5miG9Lep+idoutZDOWMlYy+ZQT1KAJ4ohszwQiI/d8phlhV3GUkVsDuzOmidUqE\n/cw2cp5HAgMBAAECggEAARGfb0Mc8GyHT8Lol9ie8oq7elAtJFPSbbFrG4XybqjB\nmEpjiD/Z3XB41BVeN6X3gFjKI2pamqxvBmryKQOjwGByX7U6XqUfqT+UlKRG1Jvu\nw+LKb3aiO3tHEwOiFjtR843lEJohnkr8uTNe2d9VVkgvMq0+c7t6+wpY61chOH2C\nxf5l+OmsDSeDOkX5RC5JCphAZ4UtTtr+fpMuO031/d9Y0BDN4J2e5Qzkw38ArA5r\nx+bFNmi6Cu0qCFjUHK1Rp7zPww9JZwg9qeb8h40AhnpupAHIqp4WHl/5GeLPykse\nmTS/jgikZOMFQiYC6HlnlWuJ4TFQud/i4GMRBxfkAQKBgQDWhM8iLrrkY2WoipAm\nPrhrDeE5xX9g75lWnCUPURAeujhLF77XteRuqTwTiJdFY6zb5Adh8d1T0RQl/NqN\n7VCrzzq+LRoRaBtLkEDkWPOkWj38HXiGFFslKcldm4LbxUj8sq3SypZwzct3Vsit\nLKZet01rVj+tMjD20Gy7vs6X1wKBgQDBIKBE9U0RqldAlXlWSOGk+ygreNMn3omS\nPHi5fQNgOboyEH8ir3QnR6KyukwaqRje7QgoVS/EsASek4PMhWiqmiWFNEqzEyZ4\nOw2UyACKl1V24wcCSqlY5CzeGVjznXcmFClfqwrGhAKRl0ggGnU+Z7QVSbZvmD9G\nmCYkW3SfEQKBgQCWaLJO9lLmFedOYDEoD6wAq8+yUQ656eUqu/qkHaNe2BTmWfTe\njFNpX9GWpJvj9DpcRysB+rLDtQIajIq1HqMEhB1dAISZldQljDRjpxbVssxpPESo\nRheOHBlrP8Fl1JMTUzjbZl5LI5A40amM+pSALqfizauCBYIdXBARJ3z1KwKBgAOD\n/Ybj1EBTEn2Jewj4EKt5KvUHoQhjw6tW0HfH78zLoDkTFc1i1kF0y2BnhcUieOJt\n/C0Hx/PTpHHii46oiww3/CDdn9J8scGUiZ3AuknLkXG1lkYTZ9vHY42zdmwQ3L9j\ntJEaQvr0IjvWPijfcmztZFjS27BSXCyDzoXw6EGRAoGBAIEsURTsyq+KJ4C3Pt4I\npzYos/2dmLkX7OwmupMFvgeIkNFNHNAU6Ca3owCIBVm6tj6T12g/tO4CJtGaA/ZO\n2UncJS9m4sYhHHnMEgp8R/15QBU1KajzZ/tXxELmfdcHcXjLF0zXIKqDq5xjt0WV\ngcSh3snuB/7MHlTJem0b8uGI
-  -----END PRIVATE KEY-----`,
-  "client_email": "adamkhurshid@even-trainer-465822-f8.iam.gserviceaccount.com",
-  "client_id": "113860672492696118370",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/adamkhurshid%40even-trainer-465822-f8.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
-};
-
+const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
+const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 
 /* --- Demo Data --- */
 let students = [
@@ -69,51 +60,132 @@ let students = [
   {id: 21, name: "Hannah He", profile_picture: "https://via.placeholder.com/80", logs: []},
 ];
 
-/* --- JWT / Access Token --- */
-async function getAccessToken() {
-  const iat = KJUR.jws.IntDate.get('now');
-  const exp = iat + 3600;
+let tokenClient;
+let gapiInited = false;
+let gisInited = false;
 
-  const payload = {
-    iss: SERVICE_ACCOUNT.client_email,
-    scope: "https://www.googleapis.com/auth/spreadsheets",
-    aud: SERVICE_ACCOUNT.token_uri,
-    iat,
-    exp
-  };
-  const sHeader = { alg: "RS256", typ: "JWT" };
-  const jwt = KJUR.jws.JWS.sign("RS256", JSON.stringify(sHeader), JSON.stringify(payload), SERVICE_ACCOUNT.private_key);
-
-  const params = new URLSearchParams();
-  params.append("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
-  params.append("assertion", jwt);
-
-  const res = await axios.post(SERVICE_ACCOUNT.token_uri, params, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" }
-  });
-  return res.data.access_token;
+function maybeEnableAuth() {
+  if (gapiInited && gisInited) {
+    document.getElementById("authorize_button").style.display = "inline-block";
+  }
 }
 
-/* --- Append attendance to Google Sheets --- */
+/* --- Google API Init --- */
+function gapiLoaded() {
+  gapi.load("client", async () => {
+    await gapi.client.init({ apiKey: API_KEY, discoveryDocs: DISCOVERY_DOCS });
+    gapiInited = true;
+    maybeEnableAuth();
+  });
+}
+function gisLoaded() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: ""
+  });
+  gisInited = true;
+  maybeEnableAuth();
+}
+
+/* --- Auth Buttons --- */
+document.getElementById("authorize_button").onclick = () => {
+  tokenClient.callback = async (resp) => {
+    if (resp.error) throw resp;
+    document.getElementById("signout_button").style.display = "inline-block";
+    renderStudents();
+  };
+  if (gapi.client.getToken() === null) {
+    tokenClient.requestAccessToken({ prompt: "consent" });
+  } else {
+    tokenClient.requestAccessToken({ prompt: "" });
+  }
+};
+document.getElementById("signout_button").onclick = () => {
+  const token = gapi.client.getToken();
+  if (token) {
+    google.accounts.oauth2.revoke(token.access_token);
+    gapi.client.setToken("");
+  }
+  document.getElementById("signout_button").style.display = "none";
+};
+
+/* --- Sheets Ops --- */
 async function appendLog(student, action) {
   const ts = new Date().toISOString();
-  const token = await getAccessToken();
-  const body = { values: [[student, action, ts]] };
-  try {
-    await axios.post(
-      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:C:append?valueInputOption=USER_ENTERED`,
-      body,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-  } catch(e) {
-    console.error("Failed to update sheet:", e.response?.data || e);
-    alert("Failed to log attendance. Check console for details.");
+  await gapi.client.sheets.spreadsheets.values.append({
+    spreadsheetId: SHEET_ID,
+    range: "A:C",
+    valueInputOption: "USER_ENTERED",
+    resource: { values: [[student, action, ts]] }
+  });
+}
+
+/* --- Summary Sheet --- */
+async function ensureSummarySheet() {
+  const spreadsheet = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+  let sheetExists = spreadsheet.result.sheets.some(s => s.properties.title === "Summary");
+  if (!sheetExists) {
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      resource: { requests: [{ addSheet: { properties: { title: "Summary" } } }] }
+    });
   }
+}
+
+async function generateSummarySheet() {
+  await ensureSummarySheet();
+
+  // Fetch raw logs
+  const res = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: "A:C"
+  });
+  const rows = res.result.values || [];
+
+  // Process per-student daily hours
+  let perStudent = {};
+  rows.forEach(([student, action, ts]) => {
+    const d = new Date(ts);
+    const day = `${d.getMonth()+1}/${d.getDate()}/25`;
+    perStudent[student] = perStudent[student] || {};
+    perStudent[student][day] = perStudent[student][day] || 0;
+    if (!perStudent[student].lastIn && action === "in") {
+      perStudent[student].lastIn = d;
+    } else if (perStudent[student].lastIn && action === "out") {
+      const hours = (d - perStudent[student].lastIn)/(1000*60*60);
+      perStudent[student][day] += hours;
+      perStudent[student].lastIn = null;
+    }
+  });
+
+  // Build header
+  const allDays = [...new Set(rows.map(r=>new Date(r[2])).map(d=>`${d.getMonth()+1}/${d.getDate()}/25`))].sort();
+  const header = ["student", ...allDays, "totalHours", "meanHours","medianHours","meanNoZeroHours","medianNoZeroHours"];
+
+  // Build rows
+  const data = [header];
+  for (let student in perStudent) {
+    const dayVals = allDays.map(d => perStudent[student][d] || 0);
+    const total = dayVals.reduce((a,b)=>a+b,0);
+    const mean = dayVals.length ? total/dayVals.length : 0;
+    const sorted = [...dayVals].sort((a,b)=>a-b);
+    const median = sorted.length ? sorted[Math.floor(sorted.length/2)] : 0;
+    const nonZero = dayVals.filter(v=>v>0);
+    const meanNZ = nonZero.length ? nonZero.reduce((a,b)=>a+b,0)/nonZero.length : 0;
+    const medianNZ = nonZero.length ? nonZero.sort((a,b)=>a-b)[Math.floor(nonZero.length/2)] : 0;
+    data.push([student, ...dayVals.map(v=>v.toFixed(2)), total.toFixed(2), mean.toFixed(2), median.toFixed(2), meanNZ.toFixed(2), medianNZ.toFixed(2)]);
+  }
+
+  // Clear & write to summary sheet
+  await gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: "Summary!A:Z" });
+  await gapi.client.sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: "Summary!A1",
+    valueInputOption: "USER_ENTERED",
+    resource: { values: data }
+  });
+  alert("Summary sheet updated!");
 }
 
 /* --- UI --- */
@@ -121,50 +193,46 @@ function renderStudents() {
   const grid = document.getElementById("students-grid");
   grid.innerHTML = "";
   students.forEach(s => {
-    const lastLog = s.logs[s.logs.length-1];
-    const status = lastLog && lastLog.action==="in" ? "in" : "out";
-    const nextAction = status==="in" ? "Exit" : "Enter";
+    const lastLog = s.logs[s.logs.length - 1];
+    const status = lastLog && lastLog.action === "in" ? "in" : "out";
+    const nextAction = status === "in" ? "Exit" : "Enter";
     grid.innerHTML += `
-      <div class="col-md-6 col-lg-4">
-        <div class="card student-card h-100 position-relative">
-          <div class="status-indicator status-${status}" id="status-${s.id}"></div>
-          <div class="card-body text-center">
-            <img src="${s.profile_picture}" class="rounded-circle profile-img mb-3" alt="${s.name}">
-            <h5 class="card-title mb-2">${s.name}</h5>
-            <div class="mb-3">
-              <span class="badge bg-${status==="in"?"success":"secondary"}">
-                ${status==="in"?"Present":"Absent"}
-              </span>
-            </div>
-            <button class="btn btn-outline-primary btn-action mb-2" onclick="toggleAttendance(${s.id})">
-              ${nextAction}
-            </button>
-            <div class="last-activity">
-              ${lastLog ? new Date(lastLog.timestamp).toLocaleString() : "No activity yet"}
-            </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="card student-card h-100 position-relative">
+        <div class="status-indicator status-${status}" id="status-${s.id}"></div>
+        <div class="card-body text-center">
+          <img src="${s.profile_picture}" class="rounded-circle profile-img mb-3" alt="${s.name}">
+          <h5 class="card-title mb-2">${s.name}</h5>
+          <div class="mb-3">
+            <span class="badge bg-${status === "in" ? "success" : "secondary"}">
+              ${status === "in" ? "Present" : "Absent"}
+            </span>
+          </div>
+          <button class="btn btn-outline-primary btn-action mb-2" onclick="toggleAttendance(${s.id})">
+            ${nextAction}
+          </button>
+          <div class="last-activity">
+            ${lastLog ? new Date(lastLog.timestamp).toLocaleString() : "No activity yet"}
           </div>
         </div>
-      </div>`;
+      </div>
+    </div>`;
   });
 }
-
 async function toggleAttendance(id) {
-  const s = students.find(x=>x.id===id);
-  const lastLog = s.logs[s.logs.length-1];
-  const status = lastLog && lastLog.action==="in" ? "in":"out";
-  const newAction = status==="in"?"out":"in";
+  const s = students.find(x => x.id === id);
+  const lastLog = s.logs[s.logs.length - 1];
+  const status = lastLog && lastLog.action === "in" ? "in" : "out";
+  const newAction = status === "in" ? "out" : "in";
   const ts = Date.now();
-  s.logs.push({action:newAction, timestamp:ts});
+  s.logs.push({action: newAction, timestamp: ts});
   renderStudents();
-  try {
-    await appendLog(s.name, newAction);
-  } catch(e) {
-    console.error("Failed to update sheet:", e);
-    alert("Failed to log attendance. Check console.");
-  }
+  await appendLog(s.name, newAction); // write to Google Sheets
 }
 
-renderStudents();
+/* --- Load Google APIs --- */
 </script>
+<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" async defer></script>
+<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
 </body>
 </html>
