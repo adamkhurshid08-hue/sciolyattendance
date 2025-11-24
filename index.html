@@ -412,6 +412,7 @@ async function toggleAttendance(id) {
   const status = lastLog && lastLog.action === "in" ? "in" : "out";
   const newAction = status === "in" ? "out" : "in";
   
+  let dif = 0;
   let docURL = "";
   if (newAction === "out") {
     docURL = prompt("Type the link to the google doc used");
@@ -419,8 +420,8 @@ async function toggleAttendance(id) {
       // User cancelled the prompt
       return;
     }
+    diff = getWordCountDifferenceAtTimestamp(lastLog.ts, docURL);
   }
-  diff = getWordCountDifferenceAtTimestamp(lastLog.ts, docURL)
   const ts = Date.now();
   s.logs.push({action: newAction, timestamp: ts, workDescription: diff});
   renderStudents();
