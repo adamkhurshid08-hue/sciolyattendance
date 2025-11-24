@@ -92,6 +92,93 @@ let tokenClient;
 let gapiInited = false;
 let gisInited = false;
 
+
+
+async function getWordCountDifferenceAtTimestamp(PAST_TIMESTAMP, DOC_URL) {
+  await gapi.client.init({
+    apiKey: API_KEY,
+    clientId: CLIENT_ID,
+    scope: SCOPES,
+    discoveryDocs: [
+      "https://docs.googleapis.com/$discovery/rest?version=v1",
+      "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"
+    ]
+  });
+
+  const cutoff = (PAST_TIMESTAMP instanceof Date)
+    ? PAST_TIMESTAMP.getTime()
+    : Number(PAST_TIMESTAMP);
+
+  // ---- STEP 1: Current word count via Docs API ----
+  const doc = await gapi.client.docs.documents.get({
+    documentId: DOC_URL
+  });
+
+  // Docs API provides word count in documentStyle if "useAlternateDocumentStyle" is enabled,
+  // but it is not always populated. So compute manually:
+  const textRuns = [];
+  for (const el of doc.result.body.content) {
+    if (el.paragraph) {
+      for (const elem of el.paragraph.elements) {
+        if (elem.textRun && elem.textRun.content) {
+          textRuns.push(elem.textRun.content);
+        }
+      }
+    }
+  }
+  const currentWords = textRuns.join("").trim().split(/\s+/).filter(Boolean).length;
+
+
+  // ---- STEP 2: Find revision immediately before cutoff ----
+  const revList = await gapi.client.drive.revisions.list({
+    fileId: DOC_URL,
+    fields: "revisions(id, modifiedTime)"
+  });
+
+  let selectedRevision = null;
+  for (const rev of revList.result.revisions) {
+    if (new Date(rev.modifiedTime).getTime() <= cutoff) {
+      selectedRevision = rev.id;
+    } else {
+      break;
+    }
+  }
+
+  if (!selectedRevision) {
+    throw new Error("No revision exists older than the given timestamp.");
+  }
+
+
+  // ---- STEP 3: Export that revision as PDF ----
+  const pdfResp = await gapi.client.drive.revisions.get({
+    fileId: DOC_URL,
+    revisionId: selectedRevision,
+    alt: "media"
+  });
+
+  const pdfData = pdfResp.body;
+
+
+  // ---- STEP 4: Extract text from PDF (PDF.js) → word count ----
+  const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+
+  let pastText = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pastText += content.items.map(t => t.str).join(" ") + " ";
+  }
+
+  const pastWords = pastText.trim().split(/\s+/).filter(Boolean).length;
+
+
+  // ---- STEP 5: Return difference ----
+  return {
+    difference: currentWords - pastWords
+  };
+}
+
+
 /* --- Token Refresh Helper --- */
 async function ensureValidToken() {
   let token = gapi.client.getToken();
@@ -325,19 +412,19 @@ async function toggleAttendance(id) {
   const status = lastLog && lastLog.action === "in" ? "in" : "out";
   const newAction = status === "in" ? "out" : "in";
   
-  let workDescription = "";
+  let docURL = "";
   if (newAction === "out") {
-    workDescription = prompt("Breifly descripe what you worked on during this session 'Notes', 'Practice', etc. and ensure you include links to any google documents like notes");
-    if (workDescription === null) {
+    docURL = prompt("Type the link to the google doc used");
+    if (docURL === null) {
       // User cancelled the prompt
       return;
     }
   }
-  
+  diff = getWordCountDifferenceAtTimestamp(lastLog.ts, docURL)
   const ts = Date.now();
-  s.logs.push({action: newAction, timestamp: ts, workDescription: workDescription});
+  s.logs.push({action: newAction, timestamp: ts, workDescription: diff});
   renderStudents();
-  appendLog(s.name, newAction, workDescription);
+  appendLog(s.name, newAction, diff);
 }
 
 /* --- Load Google APIs --- */
