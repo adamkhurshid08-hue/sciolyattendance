@@ -23,6 +23,7 @@
   <button id="authorize_button" class="btn btn-primary mb-3">Authorize Google</button>
   <button id="signout_button" class="btn btn-secondary mb-3" style="display:none;">Sign Out</button>
   <button class="btn btn-success mb-3" onclick="generateSummarySheet()">Update Summary</button>
+  <button class="btn btn-success mb-3" onclick="openSheet()">Open Summary Sheet</button>
 
   <div id="students-grid" class="row"></div>
 </div>
@@ -31,7 +32,7 @@
 /* --- CONFIG --- */
 const CLIENT_ID = "1055886700836-sajvukin1408sau8qou1l8eiib7360a4.apps.googleusercontent.com";
 const API_KEY = "AIzaSyC8N2Ntstm4g6PxQ8RXUrGE38Ac7ebJMQc";
-const SHEET_ID = "1oNVG7sDwFb-SXXDYG0x_M2JJFgg6T2e2sUmZDSF6zM8";
+const SHEET_ID = "1x1cZvh5aKMfx0mQfuPzppJtsKMJwZic509-rpIytVWc";
 const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
 const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 
@@ -43,6 +44,7 @@ let students = [
   {id: 4, name: "Adil Ahnaf", profile_picture: "students/Adil Ahnaf.jpg", logs: []},
   {id: 5, name: "Aleksander Baginski", profile_picture: "students/Aleksander Baginski.png", logs: []},
   {id: 6, name: "Alison Lee", profile_picture: "students/Alison Lee.jpg", logs: []},
+  {id: 47, name: "Arham Khan", profile_picture: "students/Arham Khan.png", logs: []},
   {id: 7, name: "Ana Haridevara", profile_picture: "students/Ana Haridevara.png", logs: []},
   {id: 8, name: "Ana Huang", profile_picture: "students/Ana Huang.png", logs: []},
   {id: 9, name: "Andrew Park", profile_picture: "students/Andrew Park.png", logs: []},
@@ -52,22 +54,27 @@ let students = [
   {id: 13, name: "Bella Yao", profile_picture: "students/Bella Yao.jpg", logs: []},
   {id: 14, name: "Caleb Wu", profile_picture: "students/Caleb Wu.webp", logs: []},
   {id: 15, name: "Clorin Pan", profile_picture: "students/Clorin Pan.jpg", logs: []},
+  {id: 45, name: "Cole Gaschke", profile_picture: "students/Cole Gaschke.png", logs: []},
   {id: 16, name: "Connor Dang", profile_picture: "students/Connor Dang.png", logs: []},
   {id: 17, name: "Derek Wang", profile_picture: "students/Derek Wang.png", logs: []},
   {id: 18, name: "Devin Wang", profile_picture: "students/Devin Wang.png", logs: []},
+  {id: 48, name: "Diego Giraldo", profile_picture: "students/Diego Giraldo.png", logs: []},
   {id: 19, name: "Ethan Lan", profile_picture: "students/Ethan Lan.png", logs: []},
   {id: 20, name: "Ethan Tseng", profile_picture: "students/Ethan Tseng.png", logs: []},
   {id: 21, name: "Fatima Shoaib", profile_picture: "students/Fatima Shoaib.png", logs: []},
   {id: 22, name: "Hannah He", profile_picture: "students/Hannah He.png", logs: []},
   {id: 23, name: "Jerry Lin", profile_picture: "students/Jerry Lin.jpg", logs: []},
+  {id: 44, name: "Jorge Pinto Cardoza", profile_picture: "students/Jorge Pinto Cardoza.webp", logs: []},
   {id: 24, name: "Joshua Park", profile_picture: "students/Joshua Park.png", logs: []},
   {id: 25, name: "Kalani Smith", profile_picture: "students/Kalani Smith.png", logs: []},
+  {id: 43, name: "Lucas Jin", profile_picture: "students/Lucas Jin.jpg", logs: []},
   {id: 26, name: "Luke Strelec", profile_picture: "students/Luke Strelec.png", logs: []},
   {id: 27, name: "Malia Watson", profile_picture: "students/Malia Watson.jpg", logs: []},
   {id: 28, name: "Matteo Scala", profile_picture: "students/Matteo Scala.png", logs: []},
   {id: 29, name: "Max Yin", profile_picture: "students/Max Yin.jpg", logs: []},
   {id: 30, name: "Morgan Agosta", profile_picture: "students/Morgan Agosta.jpg", logs: []},
   {id: 31, name: "Navya Shah", profile_picture: "students/Navya Shah.jpg", logs: []},
+  {id: 46, name: "Najib Haddad", profile_picture: "students/Najib Haddad.png", logs: []},
   {id: 32, name: "Raisha Digorna", profile_picture: "students/Raisha Digorna.png", logs: []},
   {id: 33, name: "Ray Harley", profile_picture: "students/Ray Harley.png", logs: []},
   {id: 34, name: "Ryan Caine", profile_picture: "students/Ryan Caine.png", logs: []},
@@ -78,7 +85,7 @@ let students = [
   {id: 39, name: "Thanya Tran", profile_picture: "students/Thanya Tran.jpg", logs: []},
   {id: 40, name: "Viktor Garrity", profile_picture: "students/Viktor Garrity.png", logs: []},
   {id: 41, name: "Vraj Patel", profile_picture: "students/Vraj Patel.jpg", logs: []},
-  {id: 42, name: "Zabdiel Suarez", profile_picture: "students/Zabdiel Suarez.jpg", logs: []}
+  {id: 42, name: "Zabdiel Suarez", profile_picture: "students/Zabdiel Suarez.jpg", logs: []},
 ];
 
 let tokenClient;
@@ -153,14 +160,14 @@ document.getElementById("signout_button").onclick = () => {
 };
 
 /* --- Sheets Ops --- */
-async function appendLog(student, action) {
+async function appendLog(student, action, workDescription) {
   await ensureValidToken();
   const ts = new Date().toISOString();
   await gapi.client.sheets.spreadsheets.values.append({
     spreadsheetId: SHEET_ID,
     range: "A:C",
     valueInputOption: "USER_ENTERED",
-    resource: { values: [[student, action, ts]] }
+    resource: { values: [[student, action, ts, workDescription]] }
   });
 }
 
@@ -190,45 +197,98 @@ async function generateSummarySheet() {
   let perStudent = {};
   rows.forEach(([student, action, ts]) => {
     const d = new Date(ts);
-    const day = `${d.getMonth()+1}/${d.getDate()}/25`;
+    const day = `${d.getMonth() + 1}/${d.getDate()}/25`;
     perStudent[student] = perStudent[student] || {};
     perStudent[student][day] = perStudent[student][day] || 0;
-    if (!perStudent[student].lastIn && action === "in") {
+
+    if (action === "in") {
       perStudent[student].lastIn = d;
     } else if (perStudent[student].lastIn && action === "out") {
-      const hours = (d - perStudent[student].lastIn)/(1000*60*60);
+      const hours = (d - perStudent[student].lastIn) / (1000 * 60 * 60);
       perStudent[student][day] += hours;
       perStudent[student].lastIn = null;
     }
   });
 
-  const allDays = [...new Set(rows.map(r=>new Date(r[2])).map(d=>`${d.getMonth()+1}/${d.getDate()}/25`))].sort();
-  const header = ["student", ...allDays, "totalHours", "meanHours","medianHours","meanNoZeroHours","medianNoZeroHours"];
+  const allDays = [...new Set(rows.map(r => new Date(r[2])).map(d => `${d.getMonth() + 1}/${d.getDate()}/25`))].sort();
+
+  // Compute maximums for each day across all students
+  const dayMax = {};
+  allDays.forEach(day => {
+    let max = 0;
+    for (let student in perStudent) {
+      max = Math.max(max, perStudent[student][day] || 0);
+    }
+    dayMax[day] = max;
+  });
+
+  const header = [
+    "student",
+    "totalHours",
+    "meanHours",
+    "medianHours",
+    "meanNoZeroHours",
+    "medianNoZeroHours",
+    ...allDays
+  ];
 
   const data = [header];
+
+  // Add "maximum" row first
+  const maxRow = [
+    "maximum",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ...allDays.map(d => dayMax[d].toFixed(2))
+  ];
+  data.push(maxRow);
+
+  // Add per-student rows
   for (let student in perStudent) {
     const dayVals = allDays.map(d => perStudent[student][d] || 0);
-    const total = dayVals.reduce((a,b)=>a+b,0);
-    const mean = dayVals.length ? total/dayVals.length : 0;
-    const sorted = [...dayVals].sort((a,b)=>a-b);
-    const median = sorted.length ? sorted[Math.floor(sorted.length/2)] : 0;
-    const nonZero = dayVals.filter(v=>v>0);
-    const meanNZ = nonZero.length ? nonZero.reduce((a,b)=>a+b,0)/nonZero.length : 0;
-    const medianNZ = nonZero.length ? nonZero.sort((a,b)=>a-b)[Math.floor(nonZero.length/2)] : 0;
-    data.push([student, ...dayVals.map(v=>v.toFixed(2)), total.toFixed(2), mean.toFixed(2), median.toFixed(2), meanNZ.toFixed(2), medianNZ.toFixed(2)]);
+    const total = dayVals.reduce((a, b) => a + b, 0);
+    const mean = dayVals.length ? total / dayVals.length : 0;
+    const sorted = [...dayVals].sort((a, b) => a - b);
+    const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+    const nonZero = dayVals.filter(v => v > 0);
+    const meanNZ = nonZero.length ? nonZero.reduce((a, b) => a + b, 0) / nonZero.length : 0;
+    const medianNZ = nonZero.length
+      ? nonZero.sort((a, b) => a - b)[Math.floor(nonZero.length / 2)]
+      : 0;
+
+    data.push([
+      student,
+      total.toFixed(2),
+      mean.toFixed(2),
+      median.toFixed(2),
+      meanNZ.toFixed(2),
+      medianNZ.toFixed(2),
+      ...dayVals.map(v => v.toFixed(2))
+    ]);
   }
 
-  await gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: "Summary!A:Z" });
+  await gapi.client.sheets.spreadsheets.values.clear({
+    spreadsheetId: SHEET_ID,
+    range: "Summary!A:Z"
+  });
+
   await gapi.client.sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
     range: "Summary!A1",
     valueInputOption: "USER_ENTERED",
     resource: { values: data }
   });
+
   alert("Summary sheet updated!");
 }
 
 /* --- UI --- */
+function openSheet() {
+  window.open("https://docs.google.com/spreadsheets/d/1x1cZvh5aKMfx0mQfuPzppJtsKMJwZic509-rpIytVWc/edit?usp=sharing");
+}
 function renderStudents() {
   const grid = document.getElementById("students-grid");
   grid.innerHTML = "";
@@ -264,10 +324,20 @@ async function toggleAttendance(id) {
   const lastLog = s.logs[s.logs.length - 1];
   const status = lastLog && lastLog.action === "in" ? "in" : "out";
   const newAction = status === "in" ? "out" : "in";
+  
+  let workDescription = "";
+  if (newAction === "out") {
+    workDescription = prompt("Breifly descripe what you worked on during this session 'Notes', 'Practice', etc. and ensure you include links to any google documents like notes");
+    if (workDescription === null) {
+      // User cancelled the prompt
+      return;
+    }
+  }
+  
   const ts = Date.now();
-  s.logs.push({action: newAction, timestamp: ts});
+  s.logs.push({action: newAction, timestamp: ts, workDescription: workDescription});
   renderStudents();
-  await appendLog(s.name, newAction);
+  appendLog(s.name, newAction, workDescription);
 }
 
 /* --- Load Google APIs --- */
